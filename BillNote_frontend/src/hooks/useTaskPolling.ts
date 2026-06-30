@@ -59,6 +59,7 @@ export const useTaskPolling = (interval = 3000) => {
             updateTaskContent(task.id, { status: 'FAILED' })
         }
       }
+      }
     }, interval)
 
     return () => clearInterval(timer)
