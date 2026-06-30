@@ -10,6 +10,7 @@ export const useTaskPolling = (interval = 3000) => {
   const removeTask = useTaskStore(state => state.removeTask)
 
   const tasksRef = useRef(tasks)
+  const failCountRef = useRef<Record<string, number>>({})
 
   // 每次 tasks 更新，把最新的 tasks 同步进去
   useEffect(() => {
@@ -30,6 +31,9 @@ export const useTaskPolling = (interval = 3000) => {
           const res = await get_task_status(task.id)
           const { status } = res
 
+          // 轮询成功，清零失败计数
+          failCountRef.current[task.id] = 0
+
           if (status && status !== task.status) {
             if (status === 'SUCCESS') {
               const { markdown, transcript, audio_meta } = res.result
@@ -48,8 +52,11 @@ export const useTaskPolling = (interval = 3000) => {
             }
           }
         } catch (e) {
-          console.error('❌ 任务轮询失败：', e)
-          updateTaskContent(task.id, { status: 'FAILED' })
+          console.warn('⏳ 轮询暂时失败，下次重试', e)
+          failCountRef.current[task.id] = (failCountRef.current[task.id] || 0) + 1
+          if (failCountRef.current[task.id] >= 3) {
+            console.error(`❌ 任务 ${task.id} 连续失败 3 次，标记为失败`)
+            updateTaskContent(task.id, { status: 'FAILED' })
         }
       }
     }, interval)
